@@ -1,5 +1,6 @@
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import scan
+import requests
 import nltk
 import re
 
@@ -38,11 +39,9 @@ class ESInterface(object):
         records = scan(self.conn, index=self.index_name, query=self.query, doc_type=self.doc_type)
         if test_run:
             records_num = 50000
-        else:
-            records_num = self.total
-        if test_run:
             print('Total records to fetch: %s (TEST RUN)' % records_num)
         else:
+            records_num = self.total
             print('Total records to fetch: %s' % records_num)
         print('\nNow fetching records from ES...')
         for counter, record in enumerate(records, 1):
@@ -52,6 +51,50 @@ class ESInterface(object):
                 results += [record['_source']]
             if counter % 10000 == 0:
                 print(' - Fetched %s records out of %s' % (counter, records_num))
+        print('Finished fetching records from ES\n')
+        return results
+
+
+class SearchInterface(object):
+    
+    def __init__(self):
+        self.base_url = 'https://digitalrecords.showthething.com/api/search/v0/records/'
+        self.get_total()
+        
+    def get_total(self):
+        """ Gets the total number of records that match the query """
+        resp = self._fetch_batch(0, limit=1)
+        data = resp.json()
+        self.total = data['hits']['count']
+        
+    def _fetch_batch(self, offset, limit=1000):
+        params = {'limit': limit, 'offset': offset, 'exists': 'keywords'}
+        resp = requests.get(self.base_url, params=params)
+        return resp
+    
+    def get_records(self, test_run=False):
+        print('Total matches: %s' % self.total)
+        if test_run:
+            records_num = 10000
+            print('Total records to fetch: %s (TEST RUN)' % records_num)
+        else:
+            records_num = self.total
+            print('Total records to fetch: %s' % records_num)
+        results = []
+        batches = range(0, self.total, 1000)
+        print('\nNow fetching records from ES...')
+        for batch_offset in batches:
+            fetch_count = batch_offset + 1000
+            if fetch_count <= records_num:
+                resp = self._fetch_batch(batch_offset)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    results += data['hits']['results']
+                else:
+                    raise Exception('Error fetching records from the server!')
+                print(' - Fetched %s records out of %s' % (fetch_count, records_num))
+            else:
+                break
         print('Finished fetching records from ES\n')
         return results
 
