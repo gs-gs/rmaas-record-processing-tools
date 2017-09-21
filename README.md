@@ -1,6 +1,7 @@
 # record-processing-tools
 
-Reference implementation of tools for processing formal records.
+Reference implementation of tools for processing formal records, based on record management platform proof of concept at https://digitalrecords.showthething.com/
+
 
 This repository contains two modules for automated keywords-based clustering and classification of records. These are provided as annotated notebooks that demonstrate and explain the techniques used, and also as simple programs that can be used from the command line.
 
